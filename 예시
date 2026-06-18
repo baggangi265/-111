@@ -1,3 +1,6 @@
+5ban-ai-secretary/
+├─ app.py
+└─ requirements.txt
 import streamlit as st
 from datetime import datetime
 import json
@@ -231,3 +234,6 @@ if st.button("AI 공지 생성"):
                 result,
                 height=350
             )
+
+streamlit
+google-genai
