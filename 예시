@@ -1,0 +1,235 @@
+import streamlit as st
+from datetime import datetime
+import json
+
+# Gemini
+try:
+    from google import genai
+except:
+    genai = None
+
+st.set_page_config(
+    page_title="5반 AI 학사비서",
+    page_icon="📚",
+    layout="wide"
+)
+
+st.title("📚 5반 AI 학사비서")
+st.caption("학사일정과 수행평가를 AI가 정리하여 단톡 공지용으로 요약합니다.")
+
+# 세션 상태 초기화
+if "school_events" not in st.session_state:
+    st.session_state.school_events = []
+
+if "performance_tasks" not in st.session_state:
+    st.session_state.performance_tasks = []
+
+
+# -------------------
+# Gemini 함수
+# -------------------
+def ai_summary(events, tasks):
+
+    if genai is None:
+        return "Gemini 라이브러리가 설치되지 않았습니다."
+
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""
+너는 고등학교 5반 학급 공지 AI이다.
+
+다음 정보를 읽고:
+
+1. 전체 일정 요약
+2. 중요한 일정 강조
+3. 수행평가 일정 정리
+4. 학생들이 보기 쉬운 공지문 작성
+
+학사일정:
+{json.dumps(events, ensure_ascii=False, indent=2)}
+
+수행평가:
+{json.dumps(tasks, ensure_ascii=False, indent=2)}
+
+출력 형식:
+
+📢 5반 공지
+
+(공지문)
+
+⚠️ 중요 일정
+
+(정리)
+
+📝 수행평가
+
+(정리)
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt
+        )
+
+        return response.text
+
+    except KeyError:
+        return "Secrets에 GEMINI_API_KEY가 설정되지 않았습니다."
+
+    except Exception as e:
+        return f"AI 요약 생성 중 오류 발생: {e}"
+
+
+# -------------------
+# 일정 입력
+# -------------------
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("🏫 학사일정 추가")
+
+    school_date = st.date_input("날짜", key="school_date")
+
+    school_content = st.text_input(
+        "일정 내용",
+        placeholder="예: 체육대회"
+    )
+
+    if st.button("학사일정 저장"):
+
+        if school_content.strip():
+
+            st.session_state.school_events.append({
+                "date": str(school_date),
+                "content": school_content
+            })
+
+            st.success("저장 완료!")
+
+        else:
+            st.warning("일정 내용을 입력하세요.")
+
+with col2:
+    st.subheader("📝 수행평가 추가")
+
+    task_date = st.date_input("수행평가 날짜")
+
+    subject = st.text_input(
+        "과목",
+        placeholder="예: 국어"
+    )
+
+    task_content = st.text_input(
+        "수행 내용",
+        placeholder="예: 독서 발표"
+    )
+
+    if st.button("수행평가 저장"):
+
+        if subject.strip() and task_content.strip():
+
+            st.session_state.performance_tasks.append({
+                "date": str(task_date),
+                "subject": subject,
+                "content": task_content
+            })
+
+            st.success("저장 완료!")
+
+        else:
+            st.warning("과목과 내용을 입력하세요.")
+
+
+# -------------------
+# 저장된 일정 보기
+# -------------------
+st.divider()
+
+col3, col4 = st.columns(2)
+
+with col3:
+    st.subheader("📅 학사일정")
+
+    if st.session_state.school_events:
+        st.dataframe(st.session_state.school_events)
+    else:
+        st.info("등록된 일정이 없습니다.")
+
+with col4:
+    st.subheader("📝 수행평가")
+
+    if st.session_state.performance_tasks:
+        st.dataframe(st.session_state.performance_tasks)
+    else:
+        st.info("등록된 수행평가가 없습니다.")
+
+
+# -------------------
+# 임박 일정
+# -------------------
+st.divider()
+
+st.subheader("⏰ 7일 이내 일정")
+
+today = datetime.today().date()
+
+upcoming = []
+
+for item in st.session_state.school_events:
+
+    try:
+        d = datetime.strptime(
+            item["date"],
+            "%Y-%m-%d"
+        ).date()
+
+        diff = (d - today).days
+
+        if 0 <= diff <= 7:
+            upcoming.append(
+                f"{item['date']} - {item['content']}"
+            )
+
+    except:
+        pass
+
+if upcoming:
+    for u in upcoming:
+        st.warning(u)
+else:
+    st.success("7일 이내 학사일정 없음")
+
+
+# -------------------
+# AI 요약
+# -------------------
+st.divider()
+
+st.subheader("🤖 AI 전체 요약")
+
+if st.button("AI 공지 생성"):
+
+    if (
+        not st.session_state.school_events
+        and not st.session_state.performance_tasks
+    ):
+        st.warning("먼저 일정을 입력하세요.")
+    else:
+
+        with st.spinner("AI가 공지를 작성 중입니다..."):
+
+            result = ai_summary(
+                st.session_state.school_events,
+                st.session_state.performance_tasks
+            )
+
+            st.text_area(
+                "단톡 공지문",
+                result,
+                height=350
+            )
+streamlit
+google-genai 
