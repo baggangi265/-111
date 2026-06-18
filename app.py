@@ -1,8 +1,4 @@
 import streamlit as st
-├─ app.py
-└─ requirements.txt
-
-import streamlit as st
 from datetime import datetime
 import json
 
