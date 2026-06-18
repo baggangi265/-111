@@ -231,5 +231,3 @@ if st.button("AI 공지 생성"):
                 result,
                 height=350
             )
-streamlit
-google-genai 
